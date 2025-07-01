@@ -1,0 +1,7 @@
+# Gradle build output
+/build/
+*/build/
+
+
+#json ignore for api
+app/google-services.json
