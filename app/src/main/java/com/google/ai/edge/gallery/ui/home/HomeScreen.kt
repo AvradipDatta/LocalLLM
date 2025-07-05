@@ -74,6 +74,8 @@ import com.google.ai.edge.gallery.ui.theme.customColors
 import com.google.ai.edge.gallery.ui.theme.titleMediumNarrow
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.Color
+
 
 private const val TAG = "AGHomeScreen"
 private const val TASK_COUNT_ANIMATION_DURATION = 250
@@ -231,7 +233,7 @@ private fun TaskList(
       }
     }
 
-    Box(
+    /*Box(
       modifier = Modifier
         .fillMaxWidth()
         .height(screenHeightDp * 0.25f)
@@ -240,6 +242,25 @@ private fun TaskList(
         )
         .align(Alignment.BottomCenter)
     )
+    */
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .height(screenHeightDp * 0.25f)
+        .background(
+          Brush.verticalGradient(
+            colors = listOf(
+              Color.Transparent,
+              Color(0x1A7B4FCB),  // very light purple
+              Color(0x337B4FCB),  // medium purple
+              Color(0x4D7B4FCB)   // deeper but still soft
+            )
+          )
+
+        )
+        .align(Alignment.BottomCenter)
+    )
+
   }
 }
 
