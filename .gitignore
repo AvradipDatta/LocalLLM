@@ -2,6 +2,13 @@
 /build/
 */build/
 
-
-#json ignore for api
 app/google-services.json
+
+.idea/
+*.iml
+
+local.properties
+*.log
+
+.DS_Store
+Thumbs.db
