@@ -18,4 +18,9 @@ object RandomQuoteGenerator {
         return Pair(index, quotes[index])
     }
 
+        fun getQuoteCount(): Int {
+        return quotes.size
+    }
+
+
 }
