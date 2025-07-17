@@ -13,4 +13,9 @@ object RandomQuoteGenerator {
     fun getRandomQuote(): String {
         return quotes.random()
     }
+        fun getQuoteWithIndex(): Pair<Int, String> {
+        val index = quotes.indices.random()
+        return Pair(index, quotes[index])
+    }
+
 }
