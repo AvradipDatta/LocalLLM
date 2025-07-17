@@ -22,5 +22,9 @@ object RandomQuoteGenerator {
         return quotes.size
     }
 
+        fun getAllQuotesAsString(): String {
+        return quotes.joinToString(separator = "\n")
+    }
+
 
 }
