@@ -9,18 +9,4 @@ object RandomQuoteGenerator {
         "In order to be irreplaceable, one must always be different.",
         "Fix the cause, not the symptom."
     )
-
-    fun getRandomQuote(): String {
-        return quotes.random()
-    }
-        fun getQuoteWithIndex(): Pair<Int, String> {
-        val index = quotes.indices.random()
-        return Pair(index, quotes[index])
-    }
-
-     
-
-       
-
-
 }
