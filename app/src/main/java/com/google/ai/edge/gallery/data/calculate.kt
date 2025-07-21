@@ -12,4 +12,7 @@ object RandomQuoteGenerator {
       fun getAllQuotesAsString(): String {
         return quotes.joinToString(separator = "\n")
     }
+    fun getQuoteCount(): Int {
+        return quotes.size
+    }
 }
