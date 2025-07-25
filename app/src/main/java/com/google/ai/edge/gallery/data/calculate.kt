@@ -15,8 +15,4 @@ object RandomQuoteGenerator {
     fun getQuoteCount(): Int {
         return quotes.size
     }
-    fun getQuoteWithIndex(): Pair<Int, String> {
-        val index = quotes.indices.random()
-        return Pair(index, quotes[index])
-    }
 }
