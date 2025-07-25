@@ -9,7 +9,4 @@ object RandomQuoteGenerator {
         "In order to be irreplaceable, one must always be different.",
         //"Fix the cause, not the symptom."
     )
-      fun getAllQuotesAsString(): String {
-        return quotes.joinToString(separator = "\n")
-    }
 }
