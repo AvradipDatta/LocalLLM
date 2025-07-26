@@ -16,4 +16,7 @@ object Logger {
     fun error12345(tag: String, message: String) {
         Log.e(tag, message)
     }
+    fun errorNo(tag: String, message: String) {
+        Log.e(tag, message)
+    }
 }
