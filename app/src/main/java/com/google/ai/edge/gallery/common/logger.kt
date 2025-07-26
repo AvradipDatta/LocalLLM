@@ -10,4 +10,7 @@ object Logger {
     fun error(tag: String, message: String) {
         Log.e(tag, message)
     }
+    fun error123(tag: String, message: String) {
+        Log.e(tag, message)
+    }
 }
