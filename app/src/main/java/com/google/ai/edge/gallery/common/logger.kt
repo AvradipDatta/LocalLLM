@@ -13,4 +13,7 @@ object Logger {
     fun error123(tag: String, message: String) {
         Log.e(tag, message)
     }
+    fun error12345(tag: String, message: String) {
+        Log.e(tag, message)
+    }
 }
