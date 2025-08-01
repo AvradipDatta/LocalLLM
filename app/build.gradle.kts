@@ -102,6 +102,15 @@ dependencies {
 
   // ✅ Google Sign-In SDK (already in your list, keep this)
   implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+  //new
+  implementation("com.google.android.gms:play-services-auth")
+  implementation ("com.google.android.gms:play-services-auth:20.7.0")
+  implementation ("com.squareup.okhttp3:okhttp:4.12.0")
+  implementation ("com.google.api-client:google-api-client-android:1.35.0")
+  implementation ("com.google.apis:google-api-services-gmail:v1-rev20230102-2.0.0")
+
+
 }
 
 protobuf {

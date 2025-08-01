@@ -35,8 +35,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import android.widget.Toast
+import android.content.Context
+
 
 private const val TAG = "AGLlmSingleTurnVM"
+
+data class WorkflowTask(
+  val source: String,
+  val destination: String,
+  val action: String
+)
+
 
 data class LlmSingleTurnUiState(
   /** Indicates whether the runtime is currently processing a message. */
@@ -228,4 +238,29 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
       benchmarkByModel = benchmarkByModel,
     )
   }
+
+  fun checkIfWorkflow(prompt: String): Boolean {
+    return prompt.lowercase().contains("gmail") || prompt.lowercase().contains("telegram")
+  }
+
+  fun extractWorkflowDetails(prompt: String): WorkflowTask {
+    // Let LLM infer workflow details. This is mocked. You can later call your LLM here.
+    return WorkflowTask(
+      source = if (prompt.contains("gmail", ignoreCase = true)) "gmail" else "telegram",
+      destination = if (prompt.contains("telegram", ignoreCase = true)) "telegram" else "gmail",
+      action = if (prompt.contains("summarize", ignoreCase = true)) "summarize" else "forward"
+    )
+  }
+
+  fun executeWorkflow(task: WorkflowTask): String {
+    Log.d("Workflow", "Source: ${task.source}, Destination: ${task.destination}, Action: ${task.action}")
+    when (task.source to task.destination) {
+      "gmail" to "gmail" -> { /* read from Gmail, process, send to Gmail */ }
+      "gmail" to "telegram" -> { /* read from Gmail, process, send to Telegram */ }
+      "telegram" to "gmail" -> { /* read Telegram msg, send to Gmail */ }
+      "telegram" to "telegram" -> { /* process & forward inside Telegram */ }
+    }
+    return "Workflow detected!\nAction: ${task.action}\nFrom: ${task.source}\nTo: ${task.destination}"
+  }
+
 }

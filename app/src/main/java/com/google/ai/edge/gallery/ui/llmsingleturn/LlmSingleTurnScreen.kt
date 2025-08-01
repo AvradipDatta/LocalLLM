@@ -165,9 +165,27 @@ fun LlmSingleTurnScreen(
               model = selectedModel,
               viewModel = viewModel,
               modelManagerViewModel = modelManagerViewModel,
+              /*
               onSend = { fullPrompt ->
                 viewModel.generateResponse(model = selectedModel, input = fullPrompt)
               },
+              */ //this block modified
+              onSend = { fullPrompt ->
+                // Step 1: Ask LLM if it's a workflow
+                val isWorkflowPrompt = viewModel.checkIfWorkflow(fullPrompt)
+
+                if (isWorkflowPrompt) {
+                  // Step 2: Ask LLM to parse source, destination, and task
+                  val workflow = viewModel.extractWorkflowDetails(fullPrompt)
+
+                  // Step 3: Execute the parsed workflow
+                  viewModel.executeWorkflow(workflow)
+                } else {
+                  // Fallback: Just show the LLM response
+                  viewModel.generateResponse(model = selectedModel, input = fullPrompt)
+                }
+              },
+
               onStopButtonClicked = { model -> viewModel.stopResponse(model = model) },
               modifier = Modifier.fillMaxSize(),
             )
