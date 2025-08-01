@@ -133,6 +133,7 @@ fun ChatViewWrapper(
           },
         )
       }
+
     },
     onRunAgainClicked = { model, message ->
       if (message is ChatMessageText) {

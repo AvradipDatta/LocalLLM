@@ -75,6 +75,8 @@ import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccoun
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.gmail.Gmail
+import com.google.api.services.gmail.GmailScopes
+import java.util.Collections
 
 
 
@@ -949,33 +951,29 @@ constructor(
     return downloadedFileExists || unzippedDirectoryExists
   }
 
-  private val _googleSignInAccount = MutableStateFlow<GoogleSignInAccount?>(null)
-  val googleSignInAccountFlow = _googleSignInAccount.asStateFlow()
 
-  // Store account once user signs in
-  fun setGoogleAccount(account: GoogleSignInAccount?) {
-    viewModelScope.launch {
-      _googleSignInAccount.value = account
-    }
+  //signed ing gmail
+  private var signedInAccount: GoogleSignInAccount? = null
+  public fun setSignedInGoogleAccount(account: GoogleSignInAccount?) {
+    signedInAccount = account
   }
+  fun getSignedInGoogleAccount(): GoogleSignInAccount? = signedInAccount
 
-  fun getSignedInGoogleAccount(): GoogleSignInAccount? {
-    return _googleSignInAccount.value
-  }
-
-  fun getGmailService(context: Context, account: GoogleSignInAccount): Gmail {
-    val transport = GoogleNetHttpTransport.newTrustedTransport()
-    val jsonFactory = GsonFactory.getDefaultInstance()
-
+  fun createGmailService(context: Context, account: GoogleSignInAccount): Gmail {
     val credential = GoogleAccountCredential.usingOAuth2(
       context,
-      listOf("https://www.googleapis.com/auth/gmail.readonly")
+      Collections.singleton(GmailScopes.GMAIL_READONLY)
     )
     credential.selectedAccount = account.account
 
-    return Gmail.Builder(transport, jsonFactory, credential)
-      .setApplicationName("AI Edge Gallery")
+    return Gmail.Builder(
+      com.google.api.client.http.javanet.NetHttpTransport(),
+      com.google.api.client.json.gson.GsonFactory.getDefaultInstance(),
+      credential
+    )
+      .setApplicationName("LocalLLM")
       .build()
   }
+
 
 }

@@ -27,15 +27,14 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
 import androidx.compose.ui.unit.dp
-
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.gmail.Gmail
+import com.google.api.services.gmail.GmailScopes
 
 private const val TAG = "AGLlmSingleTurnScreen"
 
-// Your actual telegram bot credentials here
-private const val TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-private const val TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"
-
-/** Navigation destination data */
 object LlmSingleTurnDestination {
   const val route = "LlmSingleTurnRoute"
 }
@@ -44,6 +43,7 @@ object LlmSingleTurnDestination {
 fun LlmSingleTurnScreen(
   modelManagerViewModel: ModelManagerViewModel,
   navigateUp: () -> Unit,
+  googleSignInAccount: GoogleSignInAccount?,
   modifier: Modifier = Modifier,
   viewModel: LlmSingleTurnViewModel,
 ) {
@@ -56,15 +56,9 @@ fun LlmSingleTurnScreen(
   var navigatingUp by remember { mutableStateOf(false) }
   var showErrorDialog by remember { mutableStateOf(false) }
 
-  // Workflow state
   var workflowRunning by remember { mutableStateOf(false) }
   var workflowError by remember { mutableStateOf<String?>(null) }
   var workflowResult by remember { mutableStateOf<String?>(null) }
-
-  // Get currently signed-in Google account from your existing shared state
-  // For example, if you store it in ModelManagerViewModel or another singleton, fetch it here
-  // Replace this line with your actual way of obtaining GoogleSignInAccount from your existing code:
-  val googleAccount: GoogleSignInAccount? = modelManagerViewModel.getSignedInGoogleAccount()
 
   val handleNavigateUp = {
     navigatingUp = true
@@ -81,7 +75,7 @@ fun LlmSingleTurnScreen(
   val curDownloadStatus = modelManagerUiState.modelDownloadStatus[selectedModel.name]
   LaunchedEffect(curDownloadStatus, selectedModel.name) {
     if (!navigatingUp && curDownloadStatus?.status == ModelDownloadStatusType.SUCCEEDED) {
-      Log.d(TAG, "Initializing model '${selectedModel.name}'")
+      Log.d(TAG, "Initializing model '\${selectedModel.name}'")
       modelManagerViewModel.initializeModel(context, task = task, model = selectedModel)
     }
   }
@@ -112,12 +106,11 @@ fun LlmSingleTurnScreen(
     },
   ) { innerPadding ->
     Column(
-      modifier =
-        Modifier.padding(
-          top = innerPadding.calculateTopPadding(),
-          start = innerPadding.calculateStartPadding(LocalLayoutDirection.current),
-          end = innerPadding.calculateStartPadding(LocalLayoutDirection.current),
-        )
+      modifier = Modifier.padding(
+        top = innerPadding.calculateTopPadding(),
+        start = innerPadding.calculateStartPadding(LocalLayoutDirection.current),
+        end = innerPadding.calculateStartPadding(LocalLayoutDirection.current),
+      )
     ) {
       ModelDownloadStatusInfoPanel(
         model = selectedModel,
@@ -151,31 +144,35 @@ fun LlmSingleTurnScreen(
                   val isWorkflowPrompt = viewModel.checkIfWorkflow(fullPrompt)
 
                   if (!isWorkflowPrompt) {
-                    // Not a workflow, normal LLM response
                     viewModel.generateResponse(model = selectedModel, input = fullPrompt)
                     workflowRunning = false
                     return@launch
                   }
 
-                  // Workflow detected — extract details
-                  val workflow = viewModel.extractWorkflowDetails(fullPrompt)
-
-                  if (googleAccount == null) {
+                  if (googleSignInAccount == null) {
                     workflowError = "Please sign in with Google to use Gmail features."
                     workflowRunning = false
                     return@launch
                   }
 
                   try {
-                    // Fetch Gmail emails using your existing gmailService creation method:
-                    val gmailService = modelManagerViewModel.getGmailService(context, googleAccount)
+                    val credential = GoogleAccountCredential.usingOAuth2(
+                      context,
+                      listOf(GmailScopes.GMAIL_READONLY, GmailScopes.GMAIL_SEND)
+                    ).apply {
+                      selectedAccount = googleSignInAccount.account
+                    }
+
+                    val gmailService = Gmail.Builder(
+                      GoogleNetHttpTransport.newTrustedTransport(),
+                      GsonFactory.getDefaultInstance(),
+                      credential
+                    ).setApplicationName("LocalLLM").build()
 
                     val emailsText = fetchGmailMessages(gmailService)
 
-                    // Summarize or process emails here (replace with your LLM or logic)
                     val summary = if (emailsText.length > 1000) emailsText.substring(0, 1000) + "..." else emailsText
 
-                    // Send summary to Telegram
                     val telegramSuccess = sendTelegramMessage(summary)
 
                     if (telegramSuccess) {
@@ -184,7 +181,7 @@ fun LlmSingleTurnScreen(
                       workflowError = "Failed to send message to Telegram."
                     }
                   } catch (e: Exception) {
-                    workflowError = "Workflow failed: ${e.localizedMessage ?: "unknown error"}"
+                    workflowError = "Workflow failed: ${e.localizedMessage ?: "error"}"
                   }
 
                   workflowRunning = false
@@ -246,8 +243,7 @@ fun LlmSingleTurnScreen(
   }
 }
 
-// Fetch recent Gmail messages snippet text (reuse your existing logic here)
-private fun fetchGmailMessages(gmailService: com.google.api.services.gmail.Gmail): String {
+private fun fetchGmailMessages(gmailService: Gmail): String {
   val user = "me"
   val listRequest = gmailService.users().messages().list(user).setMaxResults(10)
   val response = listRequest.execute()
@@ -260,12 +256,12 @@ private fun fetchGmailMessages(gmailService: com.google.api.services.gmail.Gmail
   return sb.toString()
 }
 
-// Send Telegram message via HTTP GET
 private fun sendTelegramMessage(message: String): Boolean {
   return try {
     val client = OkHttpClient()
     val url =
-      "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage?chat_id=$TELEGRAM_CHAT_ID&text=${URLEncoder.encode(message, "UTF-8")}"
+      "https://api.telegram.org/bot8281461205:AAG7F6Je80ImQ4sd3jjBMXr8KPLu5Ixs8Nc/sendMessage?chat_id=5416836654&text=" +
+              URLEncoder.encode(message, "UTF-8")
     val request = Request.Builder().url(url).get().build()
     val response = client.newCall(request).execute()
     response.isSuccessful

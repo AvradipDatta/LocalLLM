@@ -114,7 +114,7 @@ dependencies {
   implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
   implementation("com.google.firebase:firebase-auth")
   implementation("com.google.firebase:firebase-analytics")
-  implementation("com.google.android.gms:play-services-auth:20.7.0")
+  implementation("com.google.android.gms:play-services-auth:20.1.0")
 
   // Network and API clients
   implementation("com.squareup.okhttp3:okhttp:4.12.0")

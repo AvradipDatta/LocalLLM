@@ -21,7 +21,6 @@
     <string name="cancel">Cancel</string>
     <string name="ok">OK</string>
     <string name="default_web_client_id">44323401952-3uqmc95df1agqr1lknfsirhg4bqc13rm.apps.googleusercontent.com</string>
-
     <string name="confirm_delete_model_dialog_title">Delete download</string>
     <string name="confirm_delete_model_dialog_content">Are you sure you want to delete the downloaded model \"%s\"?</string>
     <string name="notification_title_success">Model download succeeded</string>

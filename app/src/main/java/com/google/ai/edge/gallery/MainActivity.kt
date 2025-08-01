@@ -23,6 +23,8 @@ import com.google.ai.edge.gallery.ui.theme.GalleryTheme
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.Scope
+import com.google.api.services.gmail.GmailScopes
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -52,9 +54,11 @@ class MainActivity : ComponentActivity() {
     }
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+    // Request ID token, email, plus Gmail read + send scopes:
     val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
       .requestIdToken("44323401952-3uqmc95df1agqr1lknfsirhg4bqc13rm.apps.googleusercontent.com")
       .requestEmail()
+      .requestScopes(Scope(GmailScopes.GMAIL_READONLY), Scope(GmailScopes.GMAIL_SEND))
       .build()
 
     googleSignInClient = GoogleSignIn.getClient(this, gso)
@@ -105,7 +109,6 @@ class MainActivity : ComponentActivity() {
             onSignOut = {
               firebaseAuth.signOut()
               currentUserState.value = null
-              // Show toast for sign out success
               Toast.makeText(this, "Signed out successfully", Toast.LENGTH_SHORT).show()
             }
           )
@@ -115,7 +118,7 @@ class MainActivity : ComponentActivity() {
   }
 
   private fun startGoogleSignIn() {
-    // Sign out to force the account chooser to appear every time
+    // Sign out to force the account chooser every time
     googleSignInClient.signOut().addOnCompleteListener {
       launcher.launch(googleSignInClient.signInIntent)
     }
@@ -128,11 +131,9 @@ class MainActivity : ComponentActivity() {
         if (task.isSuccessful) {
           Log.d(TAG, "signInWithCredential:success")
           val user = firebaseAuth.currentUser
-          this.user = user  // update top-level state
+          this.user = user
 
-          // Show toast for sign in success
           Toast.makeText(this, "Signed in successfully", Toast.LENGTH_SHORT).show()
-
         } else {
           Log.e(TAG, "signInWithCredential:failure", task.exception)
         }

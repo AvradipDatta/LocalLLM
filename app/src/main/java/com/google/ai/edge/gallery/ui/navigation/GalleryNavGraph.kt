@@ -193,7 +193,8 @@ fun GalleryNavHost(
           viewModel = viewModel,
           modelManagerViewModel = modelManagerViewModel,
           navigateUp = { navController.navigateUp() },
-        )
+          googleSignInAccount = googleSignInAccount,
+          )
       }
     }
 
