@@ -16,7 +16,9 @@
 
 package com.google.ai.edge.gallery.ui.llmsingleturn
 
+import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.ai.edge.gallery.common.processLlmResponse
@@ -27,22 +29,22 @@ import com.google.ai.edge.gallery.ui.common.chat.ChatMessageBenchmarkLlmResult
 import com.google.ai.edge.gallery.ui.common.chat.Stat
 import com.google.ai.edge.gallery.ui.llmchat.LlmChatModelHelper
 import com.google.ai.edge.gallery.ui.llmchat.LlmModelInstance
+import com.google.api.services.gmail.Gmail
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import android.widget.Toast
-import android.content.Context
-import com.google.ai.edge.gallery.workflow.WorkflowParser
-import com.google.ai.edge.gallery.workflow.WorkflowExecutor
-
-
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.net.URLEncoder
+import javax.inject.Inject
 
 private const val TAG = "AGLlmSingleTurnVM"
+private const val TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+private const val TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"
 
 data class WorkflowTask(
   val source: String,
@@ -50,37 +52,21 @@ data class WorkflowTask(
   val action: String
 )
 
-
 data class LlmSingleTurnUiState(
-  /** Indicates whether the runtime is currently processing a message. */
   val inProgress: Boolean = false,
-
-  /**
-   * Indicates whether the model is preparing (before outputting any result and after initializing).
-   */
   val preparing: Boolean = false,
-
-  // model -> <template label -> response>
   val responsesByModel: Map<String, Map<String, String>>,
-
-  // model -> <template label -> benchmark result>
   val benchmarkByModel: Map<String, Map<String, ChatMessageBenchmarkLlmResult>>,
-
-  /** Selected prompt template type. */
   val selectedPromptTemplateType: PromptTemplateType = PromptTemplateType.entries[0],
-
-  //promt response line
-  val promptResponse: String = "", // ✅ You need to add this line if it's missing
-
+  val promptResponse: String = "",
 )
 
-private val STATS =
-  listOf(
-    Stat(id = "time_to_first_token", label = "1st token", unit = "sec"),
-    Stat(id = "prefill_speed", label = "Prefill speed", unit = "tokens/s"),
-    Stat(id = "decode_speed", label = "Decode speed", unit = "tokens/s"),
-    Stat(id = "latency", label = "Latency", unit = "sec"),
-  )
+private val STATS = listOf(
+  Stat(id = "time_to_first_token", label = "1st token", unit = "sec"),
+  Stat(id = "prefill_speed", label = "Prefill speed", unit = "tokens/s"),
+  Stat(id = "decode_speed", label = "Decode speed", unit = "tokens/s"),
+  Stat(id = "latency", label = "Latency", unit = "sec"),
+)
 
 @HiltViewModel
 class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
@@ -92,7 +78,6 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
       setInProgress(true)
       setPreparing(true)
 
-      // Wait for instance to be initialized.
       while (model.instance == null) {
         delay(100)
       }
@@ -100,18 +85,6 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
       LlmChatModelHelper.resetSession(model = model)
       delay(500)
 
-      //new code snippet
-      val workflow = WorkflowParser.parse(input)
-      if (workflow != null) {
-        val response = WorkflowExecutor.execute(workflow)
-        _uiState.update { it.copy(promptResponse = response) }
-        setInProgress(false)
-        setPreparing(false)
-        return@launch
-      }
-
-
-      // Run inference.
       val instance = model.instance as LlmModelInstance
       val prefillTokens = instance.session.sizeInTokens(input)
 
@@ -124,6 +97,7 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
       val start = System.currentTimeMillis()
       var response = ""
       var lastBenchmarkUpdateTs = 0L
+
       LlmChatModelHelper.runInference(
         model = model,
         input = input,
@@ -140,35 +114,29 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
             decodeTokens++
           }
 
-          // Incrementally update the streamed partial results.
           response = processLlmResponse(response = "$response$partialResult")
 
-          // Update response.
           updateResponse(
             model = model,
             promptTemplateType = uiState.value.selectedPromptTemplateType,
             response = response,
           )
 
-          // Update benchmark (with throttling).
           if (curTs - lastBenchmarkUpdateTs > 200) {
             decodeSpeed = decodeTokens / ((curTs - firstTokenTs) / 1000f)
-            if (decodeSpeed.isNaN()) {
-              decodeSpeed = 0f
-            }
-            val benchmark =
-              ChatMessageBenchmarkLlmResult(
-                orderedStats = STATS,
-                statValues =
-                  mutableMapOf(
-                    "prefill_speed" to prefillSpeed,
-                    "decode_speed" to decodeSpeed,
-                    "time_to_first_token" to timeToFirstToken,
-                    "latency" to (curTs - start).toFloat() / 1000f,
-                  ),
-                running = !done,
-                latencyMs = -1f,
-              )
+            if (decodeSpeed.isNaN()) decodeSpeed = 0f
+
+            val benchmark = ChatMessageBenchmarkLlmResult(
+              orderedStats = STATS,
+              statValues = mutableMapOf(
+                "prefill_speed" to prefillSpeed,
+                "decode_speed" to decodeSpeed,
+                "time_to_first_token" to timeToFirstToken,
+                "latency" to (curTs - start).toFloat() / 1000f,
+              ),
+              running = !done,
+              latencyMs = -1f,
+            )
             updateBenchmark(
               model = model,
               promptTemplateType = uiState.value.selectedPromptTemplateType,
@@ -177,9 +145,7 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
             lastBenchmarkUpdateTs = curTs
           }
 
-          if (done) {
-            setInProgress(false)
-          }
+          if (done) setInProgress(false)
         },
         cleanUpListener = {
           setPreparing(false)
@@ -189,64 +155,105 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
     }
   }
 
+  fun checkIfWorkflow(prompt: String): Boolean {
+    return prompt.contains("gmail", true) || prompt.contains("telegram", true)
+  }
+
+  fun extractWorkflowDetails(prompt: String): WorkflowTask {
+    return WorkflowTask(
+      source = if (prompt.contains("gmail", true)) "gmail" else "telegram",
+      destination = if (prompt.contains("telegram", true)) "telegram" else "gmail",
+      action = if (prompt.contains("summarize", true)) "summarize" else "forward"
+    )
+  }
+
+  fun executeWorkflow(task: WorkflowTask, gmailService: Gmail?, context: Context): String {
+    return when (task.source to task.destination) {
+      "gmail" to "telegram" -> {
+        try {
+          if (gmailService == null) return "Gmail not available. Please sign in."
+          val emails = fetchGmailMessages(gmailService)
+          val summary = emails.take(1000) + if (emails.length > 1000) "..." else ""
+          val sent = sendTelegramMessage(summary)
+          if (sent) "✅ Sent email summary to Telegram." else "❌ Failed to send to Telegram."
+        } catch (e: Exception) {
+          Log.e(TAG, "Gmail->Telegram failed", e)
+          "❌ Workflow failed: ${e.message}"
+        }
+      }
+      else -> "⚠️ Workflow not yet supported for ${task.source} to ${task.destination}"
+    }
+  }
+
+  private fun fetchGmailMessages(gmailService: Gmail): String {
+    val listRequest = gmailService.users().messages().list("me").setMaxResults(10)
+    val messages = listRequest.execute().messages ?: return "No emails."
+    val sb = StringBuilder()
+    for (msg in messages) {
+      val message = gmailService.users().messages().get("me", msg.id).setFormat("full").execute()
+      sb.append(message.snippet).append("\n\n")
+    }
+    return sb.toString()
+  }
+
+  private fun sendTelegramMessage(message: String): Boolean {
+    return try {
+      val client = OkHttpClient()
+      val url = "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage?chat_id=$TELEGRAM_CHAT_ID&text=${URLEncoder.encode(message, "UTF-8")}"
+      val request = Request.Builder().url(url).get().build()
+      val response = client.newCall(request).execute()
+      response.isSuccessful
+    } catch (e: Exception) {
+      Log.e(TAG, "Telegram error", e)
+      false
+    }
+  }
+
   fun selectPromptTemplate(model: Model, promptTemplateType: PromptTemplateType) {
-    Log.d(TAG, "selecting prompt template: ${promptTemplateType.label}")
-
-    // Clear response.
-    updateResponse(model = model, promptTemplateType = promptTemplateType, response = "")
-
-    this._uiState.update {
-      this.uiState.value.copy(selectedPromptTemplateType = promptTemplateType)
-    }
-  }
-
-  fun setInProgress(inProgress: Boolean) {
-    _uiState.update { _uiState.value.copy(inProgress = inProgress) }
-  }
-
-  fun setPreparing(preparing: Boolean) {
-    _uiState.update { _uiState.value.copy(preparing = preparing) }
-  }
-
-  fun updateResponse(model: Model, promptTemplateType: PromptTemplateType, response: String) {
-    _uiState.update { currentState ->
-      val currentResponses = currentState.responsesByModel
-      val modelResponses = currentResponses[model.name]?.toMutableMap() ?: mutableMapOf()
-      modelResponses[promptTemplateType.label] = response
-      val newResponses = currentResponses.toMutableMap()
-      newResponses[model.name] = modelResponses
-      currentState.copy(responsesByModel = newResponses)
-    }
-  }
-
-  fun updateBenchmark(
-    model: Model,
-    promptTemplateType: PromptTemplateType,
-    benchmark: ChatMessageBenchmarkLlmResult,
-  ) {
-    _uiState.update { currentState ->
-      val currentBenchmark = currentState.benchmarkByModel
-      val modelBenchmarks = currentBenchmark[model.name]?.toMutableMap() ?: mutableMapOf()
-      modelBenchmarks[promptTemplateType.label] = benchmark
-      val newBenchmarks = currentBenchmark.toMutableMap()
-      newBenchmarks[model.name] = modelBenchmarks
-      currentState.copy(benchmarkByModel = newBenchmarks)
+    updateResponse(model, promptTemplateType, "")
+    _uiState.update {
+      it.copy(selectedPromptTemplateType = promptTemplateType)
     }
   }
 
   fun stopResponse(model: Model) {
-    Log.d(TAG, "Stopping response for model ${model.name}...")
     viewModelScope.launch(Dispatchers.Default) {
       setInProgress(false)
-      val instance = model.instance as LlmModelInstance
-      instance.session.cancelGenerateResponseAsync()
+      (model.instance as? LlmModelInstance)?.session?.cancelGenerateResponseAsync()
+    }
+  }
+
+  fun setInProgress(value: Boolean) {
+    _uiState.update { it.copy(inProgress = value) }
+  }
+
+  fun setPreparing(value: Boolean) {
+    _uiState.update { it.copy(preparing = value) }
+  }
+
+  fun updateResponse(model: Model, promptTemplateType: PromptTemplateType, response: String) {
+    _uiState.update {
+      val modelResponses = it.responsesByModel[model.name]?.toMutableMap() ?: mutableMapOf()
+      modelResponses[promptTemplateType.label] = response
+      val newResponses = it.responsesByModel.toMutableMap()
+      newResponses[model.name] = modelResponses
+      it.copy(responsesByModel = newResponses)
+    }
+  }
+
+  fun updateBenchmark(model: Model, promptTemplateType: PromptTemplateType, benchmark: ChatMessageBenchmarkLlmResult) {
+    _uiState.update {
+      val modelBenchmarks = it.benchmarkByModel[model.name]?.toMutableMap() ?: mutableMapOf()
+      modelBenchmarks[promptTemplateType.label] = benchmark
+      val newBenchmarks = it.benchmarkByModel.toMutableMap()
+      newBenchmarks[model.name] = modelBenchmarks
+      it.copy(benchmarkByModel = newBenchmarks)
     }
   }
 
   private fun createUiState(task: Task): LlmSingleTurnUiState {
-    val responsesByModel: MutableMap<String, Map<String, String>> = mutableMapOf()
-    val benchmarkByModel: MutableMap<String, Map<String, ChatMessageBenchmarkLlmResult>> =
-      mutableMapOf()
+    val responsesByModel = mutableMapOf<String, Map<String, String>>()
+    val benchmarkByModel = mutableMapOf<String, Map<String, ChatMessageBenchmarkLlmResult>>()
     for (model in task.models) {
       responsesByModel[model.name] = mutableMapOf()
       benchmarkByModel[model.name] = mutableMapOf()
@@ -256,29 +263,4 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
       benchmarkByModel = benchmarkByModel,
     )
   }
-
-  fun checkIfWorkflow(prompt: String): Boolean {
-    return prompt.lowercase().contains("gmail") || prompt.lowercase().contains("telegram")
-  }
-
-  fun extractWorkflowDetails(prompt: String): WorkflowTask {
-    // Let LLM infer workflow details. This is mocked. You can later call your LLM here.
-    return WorkflowTask(
-      source = if (prompt.contains("gmail", ignoreCase = true)) "gmail" else "telegram",
-      destination = if (prompt.contains("telegram", ignoreCase = true)) "telegram" else "gmail",
-      action = if (prompt.contains("summarize", ignoreCase = true)) "summarize" else "forward"
-    )
-  }
-
-  fun executeWorkflow(task: WorkflowTask): String {
-    Log.d("Workflow", "Source: ${task.source}, Destination: ${task.destination}, Action: ${task.action}")
-    when (task.source to task.destination) {
-      "gmail" to "gmail" -> { /* read from Gmail, process, send to Gmail */ }
-      "gmail" to "telegram" -> { /* read from Gmail, process, send to Telegram */ }
-      "telegram" to "gmail" -> { /* read Telegram msg, send to Gmail */ }
-      "telegram" to "telegram" -> { /* process & forward inside Telegram */ }
-    }
-    return "Workflow detected!\nAction: ${task.action}\nFrom: ${task.source}\nTo: ${task.destination}"
-  }
-
 }

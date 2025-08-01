@@ -1,5 +1,3 @@
-
-
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
@@ -47,7 +45,25 @@ android {
     compose = true
     buildConfig = true
   }
+  packaging {
+    resources {
+      // Exclude duplicate META-INF files or pick first occurrence
+      excludes += setOf(
+        "META-INF/DEPENDENCIES",
+        "META-INF/LICENSE",
+        "META-INF/LICENSE.txt",
+        "META-INF/NOTICE",
+        "META-INF/NOTICE.txt"
+      )
+    }
+  }
 }
+/*
+repositories {
+  google()
+  mavenCentral()
+}
+*/
 
 dependencies {
   implementation(libs.androidx.core.ktx)
@@ -93,24 +109,20 @@ dependencies {
   androidTestImplementation(libs.hilt.android.testing)
   debugImplementation(libs.androidx.ui.tooling)
   debugImplementation(libs.androidx.ui.test.manifest)
-  //gogole login logics
-  implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
 
-  // 🔹 Firebase SDKs you need
+  // Firebase & Google sign-in
+  implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
   implementation("com.google.firebase:firebase-auth")
   implementation("com.google.firebase:firebase-analytics")
-
-  // ✅ Google Sign-In SDK (already in your list, keep this)
   implementation("com.google.android.gms:play-services-auth:20.7.0")
 
-  //new
-  implementation("com.google.android.gms:play-services-auth")
-  implementation ("com.google.android.gms:play-services-auth:20.7.0")
-  implementation ("com.squareup.okhttp3:okhttp:4.12.0")
-  implementation ("com.google.api-client:google-api-client-android:1.35.0")
-  implementation ("com.google.apis:google-api-services-gmail:v1-rev20230102-2.0.0")
-  implementation("com.google.android.gms:play-services-auth:20.7.0")
-
+  // Network and API clients
+  implementation("com.squareup.okhttp3:okhttp:4.12.0")
+  implementation("com.google.api-client:google-api-client-android:1.35.0")
+  implementation("com.google.apis:google-api-services-gmail:v1-rev110-1.25.0")
+  implementation("com.google.api-client:google-api-client-android:1.34.0")
+  implementation("com.google.apis:google-api-services-gmail:v1-rev110-1.25.0")
+  implementation("com.google.http-client:google-http-client-gson:1.43.3")
 
 
 }

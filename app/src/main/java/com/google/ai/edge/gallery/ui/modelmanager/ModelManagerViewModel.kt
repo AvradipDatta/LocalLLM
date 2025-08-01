@@ -70,6 +70,13 @@ import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationService
 import net.openid.appauth.ResponseTypeValues
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.gmail.Gmail
+
+
 
 private const val TAG = "AGModelManagerViewModel"
 private const val TEXT_INPUT_HISTORY_MAX_SIZE = 50
@@ -941,4 +948,34 @@ constructor(
     // Will also return true if model is partially downloaded.
     return downloadedFileExists || unzippedDirectoryExists
   }
+
+  private val _googleSignInAccount = MutableStateFlow<GoogleSignInAccount?>(null)
+  val googleSignInAccountFlow = _googleSignInAccount.asStateFlow()
+
+  // Store account once user signs in
+  fun setGoogleAccount(account: GoogleSignInAccount?) {
+    viewModelScope.launch {
+      _googleSignInAccount.value = account
+    }
+  }
+
+  fun getSignedInGoogleAccount(): GoogleSignInAccount? {
+    return _googleSignInAccount.value
+  }
+
+  fun getGmailService(context: Context, account: GoogleSignInAccount): Gmail {
+    val transport = GoogleNetHttpTransport.newTrustedTransport()
+    val jsonFactory = GsonFactory.getDefaultInstance()
+
+    val credential = GoogleAccountCredential.usingOAuth2(
+      context,
+      listOf("https://www.googleapis.com/auth/gmail.readonly")
+    )
+    credential.selectedAccount = account.account
+
+    return Gmail.Builder(transport, jsonFactory, credential)
+      .setApplicationName("AI Edge Gallery")
+      .build()
+  }
+
 }
