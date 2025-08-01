@@ -1,19 +1,3 @@
-/*
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.google.ai.edge.gallery.ui.navigation
 
 import android.util.Log
@@ -69,16 +53,16 @@ import com.google.ai.edge.gallery.ui.llmsingleturn.LlmSingleTurnScreen
 import com.google.ai.edge.gallery.ui.llmsingleturn.LlmSingleTurnViewModel
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManager
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.auth.api.signin.GoogleSignIn
 
 private const val TAG = "AGGalleryNavGraph"
 private const val ROUTE_PLACEHOLDER = "placeholder"
 private const val ENTER_ANIMATION_DURATION_MS = 500
 private val ENTER_ANIMATION_EASING = EaseOutExpo
 private const val ENTER_ANIMATION_DELAY_MS = 100
-
 private const val EXIT_ANIMATION_DURATION_MS = 500
 private val EXIT_ANIMATION_EASING = EaseOutExpo
 
@@ -108,70 +92,56 @@ private fun AnimatedContentTransitionScope<*>.slideExit(): ExitTransition {
   )
 }
 
-/** Navigation routes. */
 @Composable
-
 fun GalleryNavHost(
-
   onGoogleSignInClicked: () -> Unit,
   onSignOut: () -> Unit = {},
   modifier: Modifier = Modifier,
   modelManagerViewModel: ModelManagerViewModel = hiltViewModel(),
   navController: NavHostController,
-  currentUser: FirebaseUser?, // <-- Add this
-
+  currentUser: FirebaseUser?,
 ) {
   val lifecycleOwner = LocalLifecycleOwner.current
+  val context = LocalContext.current
+  val googleSignInAccount = GoogleSignIn.getLastSignedInAccount(context)
   var showModelManager by remember { mutableStateOf(false) }
   var pickedTask by remember { mutableStateOf<Task?>(null) }
 
-
-
-  // Track whether app is in foreground.
   DisposableEffect(lifecycleOwner) {
     val observer = LifecycleEventObserver { _, event ->
       when (event) {
-        Lifecycle.Event.ON_START,
-        Lifecycle.Event.ON_RESUME -> {
-          modelManagerViewModel.setAppInForeground(foreground = true)
-        }
-        Lifecycle.Event.ON_STOP,
-        Lifecycle.Event.ON_PAUSE -> {
-          modelManagerViewModel.setAppInForeground(foreground = false)
-        }
-        else -> {
-          /* Do nothing for other events */
-        }
+        Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME -> modelManagerViewModel.setAppInForeground(true)
+        Lifecycle.Event.ON_STOP, Lifecycle.Event.ON_PAUSE -> modelManagerViewModel.setAppInForeground(false)
+        else -> {}
       }
     }
-
     lifecycleOwner.lifecycle.addObserver(observer)
-
     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
   }
 
   HomeScreen(
     currentUser = currentUser,
     onGoogleSignInClicked = onGoogleSignInClicked,
-    onSignOut = onSignOut, // ✅ FIXED
+    onSignOut = onSignOut,
     modelManagerViewModel = modelManagerViewModel,
-    navigateToTaskScreen = { task ->
+    navigateToTaskScreen = { task, account ->
       pickedTask = task
       showModelManager = true
     },
   )
 
-  // Model manager.
   AnimatedVisibility(
     visible = showModelManager,
     enter = slideInHorizontally(initialOffsetX = { it }),
     exit = slideOutHorizontally(targetOffsetX = { it }),
   ) {
     val curPickedTask = pickedTask
+    val googleSignInAccount = GoogleSignIn.getLastSignedInAccount(LocalContext.current)
     if (curPickedTask != null) {
       ModelManager(
         viewModel = modelManagerViewModel,
         task = curPickedTask,
+        account = googleSignInAccount, // pass account to ModelManager
         onModelClicked = { model ->
           navigateToTaskScreen(
             navController = navController,
@@ -186,16 +156,13 @@ fun GalleryNavHost(
 
   NavHost(
     navController = navController,
-    // Default to open home screen.
     startDestination = ROUTE_PLACEHOLDER,
     enterTransition = { EnterTransition.None },
     exitTransition = { ExitTransition.None },
     modifier = modifier.zIndex(1f),
   ) {
-    // Placeholder root screen
     composable(route = ROUTE_PLACEHOLDER) { Text("") }
 
-    // LLM chat demos.
     composable(
       route = "${LlmChatDestination.route}/{modelName}",
       arguments = listOf(navArgument("modelName") { type = NavType.StringType }),
@@ -203,10 +170,8 @@ fun GalleryNavHost(
       exitTransition = { slideExit() },
     ) { backStackEntry ->
       val viewModel: LlmChatViewModel = hiltViewModel(backStackEntry)
-
       getModelFromNavigationParam(backStackEntry, TASK_LLM_CHAT)?.let { defaultModel ->
         modelManagerViewModel.selectModel(defaultModel)
-
         LlmChatScreen(
           viewModel = viewModel,
           modelManagerViewModel = modelManagerViewModel,
@@ -215,7 +180,6 @@ fun GalleryNavHost(
       }
     }
 
-    // LLM single turn.
     composable(
       route = "${LlmSingleTurnDestination.route}/{modelName}",
       arguments = listOf(navArgument("modelName") { type = NavType.StringType }),
@@ -223,10 +187,8 @@ fun GalleryNavHost(
       exitTransition = { slideExit() },
     ) { backStackEntry ->
       val viewModel: LlmSingleTurnViewModel = hiltViewModel(backStackEntry)
-
       getModelFromNavigationParam(backStackEntry, TASK_LLM_PROMPT_LAB)?.let { defaultModel ->
         modelManagerViewModel.selectModel(defaultModel)
-
         LlmSingleTurnScreen(
           viewModel = viewModel,
           modelManagerViewModel = modelManagerViewModel,
@@ -235,7 +197,6 @@ fun GalleryNavHost(
       }
     }
 
-    // Ask image.
     composable(
       route = "${LlmAskImageDestination.route}/{modelName}",
       arguments = listOf(navArgument("modelName") { type = NavType.StringType }),
@@ -243,10 +204,8 @@ fun GalleryNavHost(
       exitTransition = { slideExit() },
     ) { backStackEntry ->
       val viewModel: LlmAskImageViewModel = hiltViewModel()
-
       getModelFromNavigationParam(backStackEntry, TASK_LLM_ASK_IMAGE)?.let { defaultModel ->
         modelManagerViewModel.selectModel(defaultModel)
-
         LlmAskImageScreen(
           viewModel = viewModel,
           modelManagerViewModel = modelManagerViewModel,
@@ -255,7 +214,6 @@ fun GalleryNavHost(
       }
     }
 
-    // Ask audio.
     composable(
       route = "${LlmAskAudioDestination.route}/{modelName}",
       arguments = listOf(navArgument("modelName") { type = NavType.StringType }),
@@ -263,10 +221,8 @@ fun GalleryNavHost(
       exitTransition = { slideExit() },
     ) { backStackEntry ->
       val viewModel: LlmAskAudioViewModel = hiltViewModel()
-
       getModelFromNavigationParam(backStackEntry, TASK_LLM_ASK_AUDIO)?.let { defaultModel ->
         modelManagerViewModel.selectModel(defaultModel)
-
         LlmAskAudioScreen(
           viewModel = viewModel,
           modelManagerViewModel = modelManagerViewModel,
@@ -276,7 +232,6 @@ fun GalleryNavHost(
     }
   }
 
-  // Handle incoming intents for deep links
   val intent = androidx.activity.compose.LocalActivity.current?.intent
   val data = intent?.data
   if (data != null) {
@@ -285,7 +240,6 @@ fun GalleryNavHost(
     if (data.toString().startsWith("com.google.ai.edge.gallery://model/")) {
       val modelName = data.pathSegments.last()
       getModelByName(modelName)?.let { model ->
-        // TODO(jingjin): need to show a list of possible tasks for this model.
         navigateToTaskScreen(
           navController = navController,
           taskType = TaskType.LLM_CHAT,
@@ -303,11 +257,10 @@ fun navigateToTaskScreen(
 ) {
   val modelName = model?.name ?: ""
   when (taskType) {
-    TaskType.LLM_CHAT -> navController.navigate("${LlmChatDestination.route}/${modelName}")
-    TaskType.LLM_ASK_IMAGE -> navController.navigate("${LlmAskImageDestination.route}/${modelName}")
-    TaskType.LLM_ASK_AUDIO -> navController.navigate("${LlmAskAudioDestination.route}/${modelName}")
-    TaskType.LLM_PROMPT_LAB ->
-      navController.navigate("${LlmSingleTurnDestination.route}/${modelName}")
+    TaskType.LLM_CHAT -> navController.navigate("${LlmChatDestination.route}/$modelName")
+    TaskType.LLM_ASK_IMAGE -> navController.navigate("${LlmAskImageDestination.route}/$modelName")
+    TaskType.LLM_ASK_AUDIO -> navController.navigate("${LlmAskAudioDestination.route}/$modelName")
+    TaskType.LLM_PROMPT_LAB -> navController.navigate("${LlmSingleTurnDestination.route}/$modelName")
     TaskType.TEST_TASK_1 -> {}
     TaskType.TEST_TASK_2 -> {}
   }
@@ -318,6 +271,5 @@ fun getModelFromNavigationParam(entry: NavBackStackEntry, task: Task): Model? {
   if (modelName.isEmpty()) {
     modelName = task.models[0].name
   }
-  val model = getModelByName(modelName)
-  return model
+  return getModelByName(modelName)
 }

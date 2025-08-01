@@ -1,25 +1,4 @@
-/*
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.google.ai.edge.gallery.ui.modelmanager
-
-// import androidx.compose.ui.tooling.preview.Preview
-// import com.google.ai.edge.gallery.ui.preview.PreviewModelManagerViewModel
-// import com.google.ai.edge.gallery.ui.preview.TASK_TEST1
-// import com.google.ai.edge.gallery.ui.theme.GalleryTheme
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +28,7 @@ import com.google.ai.edge.gallery.data.Model
 import com.google.ai.edge.gallery.data.Task
 import com.google.ai.edge.gallery.ui.common.ClickableLink
 import com.google.ai.edge.gallery.ui.common.modelitem.ModelItem
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 
 private const val TAG = "AGModelList"
 
@@ -60,31 +40,32 @@ fun ModelList(
   contentPadding: PaddingValues,
   onModelClicked: (Model) -> Unit,
   modifier: Modifier = Modifier,
+  account: GoogleSignInAccount? = null,  // <-- Added here
 ) {
   // This is just to update "models" list when task.updateTrigger is updated so that the UI can
   // be properly updated.
   val models by
-    remember(task) {
-      derivedStateOf {
-        val trigger = task.updateTrigger.value
-        if (trigger >= 0) {
-          task.models.toList().filter { !it.imported }
-        } else {
-          listOf()
-        }
+  remember(task) {
+    derivedStateOf {
+      val trigger = task.updateTrigger.value
+      if (trigger >= 0) {
+        task.models.toList().filter { !it.imported }
+      } else {
+        listOf()
       }
     }
+  }
   val importedModels by
-    remember(task) {
-      derivedStateOf {
-        val trigger = task.updateTrigger.value
-        if (trigger >= 0) {
-          task.models.toList().filter { it.imported }
-        } else {
-          listOf()
-        }
+  remember(task) {
+    derivedStateOf {
+      val trigger = task.updateTrigger.value
+      if (trigger >= 0) {
+        task.models.toList().filter { it.imported }
+      } else {
+        listOf()
       }
     }
+  }
 
   val listState = rememberLazyListState()
 
@@ -142,20 +123,11 @@ fun ModelList(
             modelManagerViewModel = modelManagerViewModel,
             onModelClicked = onModelClicked,
             modifier = Modifier.padding(horizontal = 12.dp),
+            // You can optionally pass account here to ModelItem if you extend it:
+            // account = account,
           )
         }
       }
-
-      // Title for imported models.
-//      if (importedModels.isNotEmpty()) {
-//        item(key = "importedModelsTitle") {
-//          Text(
-//            "Imported models",
-//            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-//            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 24.dp),
-//          )
-//        }
-//      }
 
       // List of imported models within a task.
       items(items = importedModels, key = { it.name }) { model ->
@@ -166,24 +138,10 @@ fun ModelList(
             modelManagerViewModel = modelManagerViewModel,
             onModelClicked = onModelClicked,
             modifier = Modifier.padding(horizontal = 12.dp),
+            // account = account,
           )
         }
       }
     }
   }
 }
-
-// @Preview(showBackground = true)
-// @Composable
-// fun ModelListPreview() {
-//   val context = LocalContext.current
-
-//   GalleryTheme {
-//     ModelList(
-//       task = TASK_TEST1,
-//       modelManagerViewModel = PreviewModelManagerViewModel(context = context),
-//       onModelClicked = {},
-//       contentPadding = PaddingValues(all = 16.dp),
-//     )
-//   }
-// }

@@ -37,6 +37,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import android.widget.Toast
 import android.content.Context
+import com.google.ai.edge.gallery.workflow.WorkflowParser
+import com.google.ai.edge.gallery.workflow.WorkflowExecutor
+
 
 
 private const val TAG = "AGLlmSingleTurnVM"
@@ -65,6 +68,10 @@ data class LlmSingleTurnUiState(
 
   /** Selected prompt template type. */
   val selectedPromptTemplateType: PromptTemplateType = PromptTemplateType.entries[0],
+
+  //promt response line
+  val promptResponse: String = "", // ✅ You need to add this line if it's missing
+
 )
 
 private val STATS =
@@ -92,6 +99,17 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
 
       LlmChatModelHelper.resetSession(model = model)
       delay(500)
+
+      //new code snippet
+      val workflow = WorkflowParser.parse(input)
+      if (workflow != null) {
+        val response = WorkflowExecutor.execute(workflow)
+        _uiState.update { it.copy(promptResponse = response) }
+        setInProgress(false)
+        setPreparing(false)
+        return@launch
+      }
+
 
       // Run inference.
       val instance = model.instance as LlmModelInstance
