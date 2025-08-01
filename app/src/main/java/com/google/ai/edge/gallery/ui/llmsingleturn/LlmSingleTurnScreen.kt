@@ -32,6 +32,23 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.gmail.Gmail
 import com.google.api.services.gmail.GmailScopes
+import android.util.Base64
+import com.google.api.services.gmail.model.Message
+import java.util.*
+import javax.mail.Message.RecipientType
+import javax.mail.Session
+import javax.mail.internet.InternetAddress
+import javax.mail.internet.MimeMessage
+import java.io.ByteArrayOutputStream
+import com.google.api.client.extensions.android.http.AndroidHttp
+import android.app.AlertDialog
+import java.io.PrintWriter
+import java.io.StringWriter
+import java.io.File
+import java.io.FileOutputStream
+import kotlinx.coroutines.withContext
+
+
 
 private const val TAG = "AGLlmSingleTurnScreen"
 
@@ -156,6 +173,7 @@ fun LlmSingleTurnScreen(
                   }
 
                   try {
+
                     val credential = GoogleAccountCredential.usingOAuth2(
                       context,
                       listOf(GmailScopes.GMAIL_READONLY, GmailScopes.GMAIL_SEND)
@@ -163,27 +181,34 @@ fun LlmSingleTurnScreen(
                       selectedAccount = googleSignInAccount.account
                     }
 
+                    val transport = AndroidHttp.newCompatibleTransport()
+
                     val gmailService = Gmail.Builder(
-                      GoogleNetHttpTransport.newTrustedTransport(),
+                      AndroidHttp.newCompatibleTransport(),
                       GsonFactory.getDefaultInstance(),
                       credential
                     ).setApplicationName("LocalLLM").build()
 
-                    val emailsText = fetchGmailMessages(gmailService)
+                    val subject = "Workflow Detected"
+                    val body = "A workflow was detected in your prompt."
 
-                    val summary = if (emailsText.length > 1000) emailsText.substring(0, 1000) + "..." else emailsText
+                    val email = googleSignInAccount.email ?: throw IllegalStateException("Email not found")
+                    val emailSent = sendEmailToSelf(gmailService, email, subject, body)
 
-                    val telegramSuccess = sendTelegramMessage(summary)
+                    //val telegramSuccess = sendTelegramMessage(context, "Workflow detected: Email and Telegram test.")
+                    val (telegramSuccess, telegramError) = sendTelegramMessage(context, "Workflow test message")
 
                     if (telegramSuccess) {
-                      workflowResult = "Workflow succeeded: Email summary sent to Telegram."
+                      workflowResult = "Telegram message sent successfully!"
                     } else {
-                      workflowError = "Failed to send message to Telegram."
+                      workflowError = "Telegram failed!\n\n$telegramError"
                     }
                   } catch (e: Exception) {
                     workflowError = "Workflow failed: ${e.localizedMessage ?: "error"}"
+                    val errorText = Log.getStackTraceString(e)
+                    saveErrorToFile(context, "telegram_error.txt", errorText)
+                    workflowError = "Unknown error. Saved to file: telegram_error.txt"
                   }
-
                   workflowRunning = false
                 }
               },
@@ -256,17 +281,81 @@ private fun fetchGmailMessages(gmailService: Gmail): String {
   return sb.toString()
 }
 
-private fun sendTelegramMessage(message: String): Boolean {
-  return try {
-    val client = OkHttpClient()
-    val url =
-      "https://api.telegram.org/bot8281461205:AAG7F6Je80ImQ4sd3jjBMXr8KPLu5Ixs8Nc/sendMessage?chat_id=5416836654&text=" +
-              URLEncoder.encode(message, "UTF-8")
-    val request = Request.Builder().url(url).get().build()
-    val response = client.newCall(request).execute()
-    response.isSuccessful
+suspend fun sendTelegramMessage(context: Context, message: String): Pair<Boolean, String?> {
+  return withContext(Dispatchers.IO) {
+    try {
+      val client = OkHttpClient()
+      val url =
+        "https://api.telegram.org/bot8281461205:AAG7F6Je80ImQ4sd3jjBMXr8KPLu5Ixs8Nc/sendMessage?chat_id=5416836654&text=" +
+                URLEncoder.encode(message, "UTF-8")
+      val request = Request.Builder().url(url).get().build()
+      val response = client.newCall(request).execute()
+
+      if (!response.isSuccessful) {
+        val errorBody = response.body?.string()
+        val fullError = "Telegram error: HTTP ${response.code}\n$errorBody"
+        saveErrorToFile(context, "telegram_error.txt", fullError)
+        return@withContext Pair(false, fullError)
+      }
+
+      return@withContext Pair(true, null)
+    } catch (e: Exception) {
+      val errorText = Log.getStackTraceString(e)
+      saveErrorToFile(context, "telegram_error.txt", errorText)
+      return@withContext Pair(false, errorText)
+    }
+  }
+}
+
+
+fun saveErrorToFile(context: Context, fileName: String, content: String) {
+  try {
+    val file = File(context.getExternalFilesDir(null), fileName)
+    FileOutputStream(file).use { output ->
+      output.write(content.toByteArray())
+    }
   } catch (e: Exception) {
-    Log.e(TAG, "Telegram send error", e)
+    Log.e("FileSave", "Failed to write error file: ${e.message}")
+  }
+}
+
+
+private fun showAlertDialog(context: Context, title: String, message: String) {
+  AlertDialog.Builder(context)
+    .setTitle(title)
+    .setMessage(message)
+    .setPositiveButton("OK", null)
+    .create()
+    .show()
+}
+
+
+
+fun sendEmailToSelf(gmailService: Gmail, recipientEmail: String, subject: String, body: String): Boolean {
+  return try {
+    val props = Properties()
+    val session = Session.getDefaultInstance(props, null)
+    val email = MimeMessage(session).apply {
+      setFrom(InternetAddress(recipientEmail))
+      addRecipient(RecipientType.TO, InternetAddress(recipientEmail))
+      setSubject(subject)
+      setText(body)
+    }
+
+    val buffer = ByteArrayOutputStream()
+    email.writeTo(buffer)
+    val encodedEmail = Base64.encodeToString(buffer.toByteArray(), Base64.URL_SAFE)
+
+    val message = Message().apply {
+      raw = encodedEmail
+    }
+
+    gmailService.users().messages().send("me", message).execute()
+    true
+  } catch (e: Exception) {
+    Log.e("EmailSend", "Failed to send email: ${e.message}", e)
     false
   }
 }
+
+

@@ -46,7 +46,7 @@ import com.google.ai.edge.gallery.data.createLlmChatConfigs
 import com.google.ai.edge.gallery.data.getModelByName
 import com.google.ai.edge.gallery.data.processTasks
 import com.google.ai.edge.gallery.proto.AccessTokenData
-import com.google.ai.edge.gallery.proto.ImportedModel
+//import com.google.ai.edge.gallery.proto.ImportedModel
 import com.google.ai.edge.gallery.proto.Theme
 import com.google.ai.edge.gallery.ui.common.AuthConfig
 import com.google.ai.edge.gallery.ui.llmchat.LlmChatModelHelper
@@ -222,12 +222,12 @@ constructor(
       curModelDownloadStatus.remove(model.name)
 
       // Update data store.
-      val importedModels = dataStoreRepository.readImportedModels().toMutableList()
-      val importedModelIndex = importedModels.indexOfFirst { it.fileName == model.name }
-      if (importedModelIndex >= 0) {
-        importedModels.removeAt(importedModelIndex)
-      }
-      dataStoreRepository.saveImportedModels(importedModels = importedModels)
+      //val importedModels = dataStoreRepository.readImportedModels().toMutableList()
+      //val importedModelIndex = importedModels.indexOfFirst { it.fileName == model.name }
+      //if (importedModelIndex >= 0) {
+        //importedModels.removeAt(importedModelIndex)
+      //}
+      //dataStoreRepository.saveImportedModels(importedModels = importedModels)
     }
     val newUiState =
       uiState.value.copy(
@@ -419,7 +419,7 @@ constructor(
     }
   }
 
-  fun addImportedLlmModel(info: ImportedModel) {
+  /*fun addImportedLlmModel(info: ImportedModel) {
     Log.d(TAG, "adding imported llm model: $info")
 
     // Create model.
@@ -465,7 +465,9 @@ constructor(
     }
 
     // Add to data store.
-    val importedModels = dataStoreRepository.readImportedModels().toMutableList()
+    //val importedModels = dataStoreRepository.readImportedModels().toMutableList()
+    val importedModels: List<ImportedModel> = dataStoreRepository.readImportedModels()
+
     val importedModelIndex = importedModels.indexOfFirst { info.fileName == it.fileName }
     if (importedModelIndex >= 0) {
       Log.d(TAG, "duplicated imported model found in data store. Removing it first")
@@ -473,7 +475,7 @@ constructor(
     }
     importedModels.add(info)
     dataStoreRepository.saveImportedModels(importedModels = importedModels)
-  }
+  }*/
 
   fun getTokenStatusAndData(): TokenStatusAndData {
     // Try to load token data from DataStore.
@@ -796,6 +798,7 @@ constructor(
     }
 
     // Load imported models.
+    /*
     for (importedModel in dataStoreRepository.readImportedModels()) {
       Log.d(TAG, "stored imported model: $importedModel")
 
@@ -819,7 +822,7 @@ constructor(
           receivedBytes = importedModel.fileSize,
           totalBytes = importedModel.fileSize,
         )
-    }
+    }*/
 
     val textInputHistory = dataStoreRepository.readTextInputHistory()
     Log.d(TAG, "text input history: $textInputHistory")
@@ -833,6 +836,7 @@ constructor(
     )
   }
 
+  /*
   private fun createModelFromImportedModelInfo(info: ImportedModel): Model {
     val accelerators: List<Accelerator> =
       info.llmConfig.compatibleAcceleratorsList.mapNotNull { acceleratorLabel ->
@@ -868,7 +872,7 @@ constructor(
     model.preProcess()
 
     return model
-  }
+  }*/
 
   /**
    * Retrieves the download status of a model.

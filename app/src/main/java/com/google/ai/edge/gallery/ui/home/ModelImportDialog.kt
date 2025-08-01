@@ -73,8 +73,8 @@ import com.google.ai.edge.gallery.data.NumberSliderConfig
 import com.google.ai.edge.gallery.data.SegmentedButtonConfig
 import com.google.ai.edge.gallery.data.ValueType
 import com.google.ai.edge.gallery.data.convertValueToTargetType
-import com.google.ai.edge.gallery.proto.ImportedModel
-import com.google.ai.edge.gallery.proto.LlmConfig
+//import com.google.ai.edge.gallery.proto.ImportedModel
+//import com.google.ai.edge.gallery.proto.LlmConfig
 import com.google.ai.edge.gallery.ui.common.ConfigEditorsPanel
 import com.google.ai.edge.gallery.ui.common.ensureValidFileName
 import com.google.ai.edge.gallery.ui.common.humanReadableSize
@@ -130,6 +130,7 @@ private val IMPORT_CONFIGS_LLM: List<Config> =
     ),
   )
 
+/*
 @Composable
 fun ModelImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: (ImportedModel) -> Unit) {
   val context = LocalContext.current
@@ -262,8 +263,9 @@ fun ModelImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: (ImportedModel) -
       }
     }
   }
-}
+}*/
 
+/*
 @Composable
 fun ModelImportingDialog(
   uri: Uri,
@@ -349,7 +351,7 @@ fun ModelImportingDialog(
       }
     }
   }
-}
+}*/
 
 private fun importModel(
   context: Context,

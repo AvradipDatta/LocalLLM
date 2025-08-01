@@ -53,10 +53,14 @@ android {
         "META-INF/LICENSE",
         "META-INF/LICENSE.txt",
         "META-INF/NOTICE",
-        "META-INF/NOTICE.txt"
+        "META-INF/NOTICE.txt",
+        "META-INF/LICENSE.md",
+        "META-INF/NOTICE.md"
       )
     }
   }
+
+
 }
 /*
 repositories {
@@ -64,6 +68,23 @@ repositories {
   mavenCentral()
 }
 */
+
+
+protobuf {
+  protoc {
+    artifact = "com.google.protobuf:protoc:4.26.1"
+  }
+  generateProtoTasks {
+    all().forEach {
+      it.plugins {
+        create("java") {
+          option("lite") // or full option if needed
+        }
+      }
+    }
+  }
+}
+
 
 dependencies {
   implementation(libs.androidx.core.ktx)
@@ -120,14 +141,22 @@ dependencies {
   implementation("com.squareup.okhttp3:okhttp:4.12.0")
   implementation("com.google.api-client:google-api-client-android:1.35.0")
   implementation("com.google.apis:google-api-services-gmail:v1-rev110-1.25.0")
-  implementation("com.google.api-client:google-api-client-android:1.34.0")
+  //implementation("com.google.api-client:google-api-client-android:1.34.0")
   implementation("com.google.apis:google-api-services-gmail:v1-rev110-1.25.0")
   implementation("com.google.http-client:google-http-client-gson:1.43.3")
+  implementation("com.google.http-client:google-http-client-android:1.43.3") // <- ✅ required for AndroidHttp
+  implementation("com.sun.mail:android-mail:1.6.7")
+  implementation("com.sun.mail:android-activation:1.6.7")
+  implementation("com.google.api-client:google-api-client-android:1.33.2")
+  implementation("com.google.api-client:google-api-client-gson:1.33.2")
+
+
+
 
 
 }
 
-protobuf {
+/*protobuf {
   protoc { artifact = "com.google.protobuf:protoc:4.26.1" }
   generateProtoTasks { all().forEach { it.plugins { create("java") { option("lite") } } } }
-}
+}*/

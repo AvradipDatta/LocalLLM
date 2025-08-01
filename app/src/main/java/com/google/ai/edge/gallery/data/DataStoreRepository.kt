@@ -18,7 +18,7 @@ package com.google.ai.edge.gallery.data
 
 import androidx.datastore.core.DataStore
 import com.google.ai.edge.gallery.proto.AccessTokenData
-import com.google.ai.edge.gallery.proto.ImportedModel
+//import com.google.ai.edge.gallery.proto.ImportedModel
 import com.google.ai.edge.gallery.proto.Settings
 import com.google.ai.edge.gallery.proto.Theme
 import kotlinx.coroutines.flow.first
@@ -40,9 +40,9 @@ interface DataStoreRepository {
 
   fun readAccessTokenData(): AccessTokenData?
 
-  fun saveImportedModels(importedModels: List<ImportedModel>)
+  //fun saveImportedModels(importedModels: List<ImportedModel>)
 
-  fun readImportedModels(): List<ImportedModel>
+  //fun readImportedModels(): List<ImportedModel>
 }
 
 /** Repository for managing data using Proto DataStore. */
@@ -106,7 +106,9 @@ class DefaultDataStoreRepository(private val dataStore: DataStore<Settings>) : D
       settings.accessTokenData
     }
   }
+}
 
+  /*
   override fun saveImportedModels(importedModels: List<ImportedModel>) {
     runBlocking {
       dataStore.updateData { settings ->
@@ -118,7 +120,9 @@ class DefaultDataStoreRepository(private val dataStore: DataStore<Settings>) : D
   override fun readImportedModels(): List<ImportedModel> {
     return runBlocking {
       val settings = dataStore.data.first()
-      settings.importedModelList
+      settings.ImportedModel
     }
   }
 }
+
+   */
