@@ -158,7 +158,9 @@ fun LlmSingleTurnScreen(
                   workflowError = null
                   workflowResult = null
 
-                  val isWorkflowPrompt = viewModel.checkIfWorkflow(fullPrompt)
+                  //val isWorkflowPrompt = viewModel.checkIfWorkflow(fullPrompt)
+                  val isWorkflowPrompt = viewModel.isWorkflowPromptWithModel(selectedModel, fullPrompt)
+
 
                   if (!isWorkflowPrompt) {
                     viewModel.generateResponse(model = selectedModel, input = fullPrompt)

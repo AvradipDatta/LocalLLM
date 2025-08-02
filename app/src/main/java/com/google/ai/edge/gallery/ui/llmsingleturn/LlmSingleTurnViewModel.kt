@@ -31,6 +31,7 @@ import com.google.ai.edge.gallery.ui.llmchat.LlmChatModelHelper
 import com.google.ai.edge.gallery.ui.llmchat.LlmModelInstance
 import com.google.api.services.gmail.Gmail
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +42,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
 import javax.inject.Inject
+import kotlinx.coroutines.withContext
+
 
 private const val TAG = "AGLlmSingleTurnVM"
 private const val TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
@@ -154,6 +157,57 @@ class LlmSingleTurnViewModel @Inject constructor() : ViewModel() {
       )
     }
   }
+
+  suspend fun isWorkflowPromptWithModel(model: Model, prompt: String): Boolean {
+    val systemPrompt = "Is this a workflow command? Reply with only YES or NO.\n\nPrompt: $prompt"
+    val response = generateResponseWithModel(model, systemPrompt)
+    return response.trim().equals("YES", ignoreCase = true)
+  }
+
+
+
+  suspend fun generateResponseWithModel(model: Model, prompt: String): String {
+    return withContext(Dispatchers.Default) {
+      // Wait until model is initialized
+      while (model.instance == null) {
+        delay(100)
+      }
+
+      // Reset the model session
+      LlmChatModelHelper.resetSession(model = model)
+      delay(500)
+
+      val instance = model.instance as LlmModelInstance
+      var finalResponse = ""
+
+      val completion = CompletableDeferred<Unit>()
+
+      LlmChatModelHelper.runInference(
+        model = model,
+        input = prompt,
+        resultListener = { partialResult, done ->
+          finalResponse += partialResult
+
+          if (done) {
+            completion.complete(Unit)
+          }
+        },
+        cleanUpListener = {
+          if (!completion.isCompleted) {
+            completion.complete(Unit)
+          }
+        }
+      )
+
+      // Wait for generation to finish
+      completion.await()
+      return@withContext finalResponse
+    }
+  }
+
+
+
+
 
   fun checkIfWorkflow(prompt: String): Boolean {
     return prompt.contains("gmail", true) || prompt.contains("telegram", true)
